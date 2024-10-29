@@ -29,11 +29,12 @@ async def get_xml_feeds():
             todays_urls.append(url_data['url'])
         else:
             older_urls.append(url_data['url'])
+    print(f"Todays URLs: {todays_urls}")
     
     # Get feeds for both sets of URLs concurrently
     todays_feeds, older_feeds = await gather(
-        get_consolidated_todays_feeds(todays_urls),
-        get_consolidated_feeds(older_urls)
+        get_consolidated_todays_feeds(older_urls),
+        get_consolidated_feeds(todays_urls)
     )
     
     # Combine all feeds

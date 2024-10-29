@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from motor.motor_asyncio import AsyncIOMotorClient
 from core.config import settings
+from scheduler import init_scheduler
 
 
 @asynccontextmanager
@@ -11,12 +12,17 @@ async def lifespan(app: FastAPI):
     # Startup logic
     app.mongodb_client = AsyncIOMotorClient(settings.MONGODB_URI)
     app.mongodb = app.mongodb_client[settings.MONGODB_NAME]
+    
+    # Initialize the scheduler
+    scheduler = init_scheduler()
+    
     try:
         yield
     finally:
         # Shutdown logic
+        scheduler.shutdown()
         app.mongodb_client.close()
-        print("MongoDB connection closed successfully.")
+        print("MongoDB connection closed and scheduler shutdown successfully.")
 
 # Initialize FastAPI app
 app = FastAPI(lifespan=lifespan)

@@ -19,3 +19,9 @@ pydantic-settings
 
 # Motor for MongoDB async client
 motor
+
+# APScheduler for scheduling tasks
+APScheduler
+
+# httpx for making HTTP requests
+httpx
