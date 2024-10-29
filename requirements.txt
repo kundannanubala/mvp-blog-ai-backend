@@ -1,0 +1,21 @@
+# FastAPI dependencies
+fastapi
+uvicorn
+
+# CORS Middleware for FastAPI
+fastapi-cors
+
+# Pydantic for data validation
+pydantic
+
+# Python Dotenv for loading environment variables
+python-dotenv
+
+# Feedparser for parsing RSS feeds
+feedparser
+
+# Pydantic Settings for loading environment variables
+pydantic-settings
+
+# Motor for MongoDB async client
+motor
