@@ -1,57 +1,87 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import List, Dict
 from motor.motor_asyncio import AsyncIOMotorClient
 from core.config import settings
 from uuid import uuid4
 from datetime import datetime
 from services.xmlServices import *
+from asyncio import gather
 
 router = APIRouter()
 
-# Define a Pydantic model for the request body
 class XmlUrlRequest(BaseModel):
-    url: str
-    domain: str
+    urls: Dict[str, str]  # Key is URL, Value is domain
 
 @router.get("/")
 async def get_xml_feeds():
-    xml_urls = await get_xml_urls_from_db()
-
-    todays_feeds = get_consolidated_todays_feeds(xml_urls)
+    # Get all URLs with their metadata from DB
+    xml_urls_data = await get_xml_urls_from_db()
+    
+    # Separate today's URLs and older URLs
+    today = datetime.now().date()
+    todays_urls = []
+    older_urls = []
+    
+    for url_data in xml_urls_data:
+        created_date = url_data['created_at'].date()
+        if created_date == today:
+            todays_urls.append(url_data['url'])
+        else:
+            older_urls.append(url_data['url'])
+    
+    # Get feeds for both sets of URLs concurrently
+    todays_feeds, older_feeds = await gather(
+        get_consolidated_todays_feeds(todays_urls),
+        get_consolidated_feeds(older_urls)
+    )
+    
+    # Combine all feeds
+    all_feeds = todays_feeds + older_feeds
+    
+    # Write to file
     with open("result.txt", "w") as file:
-        for feed in todays_feeds:
+        for feed in all_feeds:
             file.write("Title: {}\n".format(feed['title']))
             file.write("Published: {}\n".format(feed['published']))
             file.write("Link: {}\n".format(feed['link']))
             file.write("Source URL: {}\n\n".format(feed['source']))
             file.write("-" * 50 + "\n")
 
-    return todays_feeds
+    return all_feeds
 
-@router.post("/add-url")
-async def add_xml_url(xml_url_request: XmlUrlRequest):
-    # Connect to MongoDB
+@router.post("/add-urls")
+async def add_xml_urls(xml_url_request: XmlUrlRequest):
     client = AsyncIOMotorClient(settings.MONGODB_URI)
     db = client[settings.MONGODB_NAME]
     collection = db['xml_urls']
     
+    results = []
+    errors = []
 
-    # Check if the URL already exists
-    existing_url = await collection.find_one({"url": xml_url_request.url})
-    if existing_url:
-        raise HTTPException(status_code=400, detail="URL already exists")
+    for url, domain in xml_url_request.urls.items():
+        try:
+            existing_url = await collection.find_one({"url": url})
+            if existing_url:
+                errors.append(f"URL already exists: {url}")
+                continue
 
-    # Insert the new URL and domain
-    result = await collection.insert_one({
-        "url": xml_url_request.url,
-        "domain": xml_url_request.domain,
-        "id": f"{xml_url_request.domain}_{uuid4()}",
-        "created_at": datetime.utcnow()  # Ensure this line is included
-    })
+            result = await collection.insert_one({
+                "url": url,
+                "domain": domain,
+                "id": f"{domain}_{uuid4()}",
+                "created_at": datetime.utcnow()
+            })
+            results.append(str(result.inserted_id))
+        except Exception as e:
+            errors.append(f"Error adding URL {url}: {str(e)}")
 
-    # Close the MongoDB connection
     client.close()
 
-    return {"message": "URL added successfully", "id": str(result.inserted_id)}
+    return {
+        "message": f"Added {len(results)} URLs successfully",
+        "successful_ids": results,
+        "errors": errors if errors else None
+    }
 
 
