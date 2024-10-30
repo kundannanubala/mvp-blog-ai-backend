@@ -25,3 +25,9 @@ APScheduler
 
 # httpx for making HTTP requests
 httpx
+
+# BeautifulSoup for parsing HTML
+beautifulsoup4
+
+# aiohttp for making HTTP requests
+aiohttp
