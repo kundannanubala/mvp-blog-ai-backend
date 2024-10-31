@@ -36,3 +36,18 @@ async def save_processed_entries(processed_entries: list) -> list:
         client.close()
         
     return saved_articles
+
+async def get_article():
+    client = AsyncIOMotorClient(settings.MONGODB_URI)
+    db = client[settings.MONGODB_NAME]
+    collection = db['articles']
+    
+    articles = await collection.find().to_list(length=None)
+    
+    # Convert ObjectId to string
+    for article in articles:
+        article['id'] = str(article['_id'])  # Convert ObjectId to string
+        del article['_id']  # Optionally remove the original ObjectId field
+    
+    client.close()
+    return articles
