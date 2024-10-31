@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api import xml, article
+from api import xml, article, user
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -41,6 +41,9 @@ app.include_router(xml.router, tags=["Xml"], prefix="/xml")
 
 # Include Article router
 app.include_router(article.router, tags=["Article"], prefix="/article")
+
+# Include User router
+app.include_router(user.router, tags=["User"], prefix="/user")
 
 # Run the app
 if __name__ == "__main__":

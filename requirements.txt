@@ -49,3 +49,6 @@ aiohttp
 
 # BeautifulSoup for parsing HTML
 beautifulsoup4
+
+# Bcrypt for hashing passwords
+bcrypt
