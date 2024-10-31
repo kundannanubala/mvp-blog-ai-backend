@@ -2,3 +2,5 @@ venv/
 __pycache__/
 result.txt
 .env
+credentials.json
+env.url

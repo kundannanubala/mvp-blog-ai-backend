@@ -4,18 +4,123 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from core.config import settings
 from asyncio import gather
 from services.articleServices import save_processed_entries
+from services.blogServices import generate_blog_post
+import asyncio
+import dotenv
+dotenv.load_dotenv()
+from groq import AsyncGroq
+import aiohttp
+from bs4 import BeautifulSoup
+
+# Configure Groq client
+try:
+    client = AsyncGroq(
+        api_key=settings.GROQ_API_KEY
+    )
+except Exception as e:
+    print(f"Error configuring Groq API: {str(e)}")
 
 async def scraper(link: str) -> str:
     """
-    A dummy scraper function that processes a single feed entry link.
+    Scrapes and cleans blog content from the given URL.
+    Returns only the cleaned content text.
     """
-    return f"{link} parsed"
+    try:
+        client = AsyncIOMotorClient(settings.MONGODB_URI)
+        db = client[settings.MONGODB_NAME]
+        collection = db['scraped_content']
+        
+        # Check if URL already scraped
+        existing = await collection.find_one({"url": link})
+        if existing:
+            return existing['content']
+            
+        async with aiohttp.ClientSession() as session:
+            async with session.get(link) as response:
+                if response.status == 200:
+                    html = await response.text()
+                    soup = BeautifulSoup(html, 'html.parser')
+                    
+                    # Remove unwanted elements
+                    for element in soup.find_all(['script', 'style', 'nav', 'header', 'footer', 
+                                                'meta', 'input', 'button', 'form', 'iframe',
+                                                'noscript', 'svg', 'path', 'aside', '.sidebar',
+                                                '.advertisement', '.social-share', '.comments']):
+                        element.decompose()
+                    
+                    # Find main content
+                    main_content = None
+                    for selector in ['article', 'main', '.post-content', '.entry-content', 
+                                   '.blog-content', '.article-content', '#main-content']:
+                        main_content = soup.select_one(selector)
+                        if main_content:
+                            break
+                    
+                    content_soup = main_content if main_content else soup.body
+                    
+                    if content_soup:
+                        # Extract only meaningful paragraphs and headings
+                        paragraphs = content_soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+                        text_content = []
+                        
+                        for p in paragraphs:
+                            text = p.get_text(strip=True)
+                            if text and len(text) > 20:  # Only keep substantial paragraphs
+                                # Clean the text
+                                text = ' '.join(text.split())  # Normalize whitespace
+                                text = text.replace('Click here', '')
+                                text = text.replace('Subscribe now', '')
+                                text = text.replace('Advertisement', '')
+                                text_content.append(text)
+                        
+                        # Join paragraphs with double newlines for readability
+                        scrape_result = '\n\n'.join(text_content)
+                        
+                        if scrape_result:
+                            # Store in MongoDB
+                            await collection.insert_one({
+                                "url": link,
+                                "content": scrape_result,
+                                "scraped_at": datetime.utcnow()
+                            })
+                            return scrape_result
+                return "No meaningful content found"
+                    
+    except Exception as e:
+        return f"Error scraping {link}: {str(e)}"
+    finally:
+        client.close()
 
 async def summary(scrape_result: str) -> str:
     """
-    A dummy summary function that processes the scraper result.
+    Summarizes the scraped content using Groq's Mixtral model.
+    Returns a concise summary while preserving key context.
     """
-    return f"Summary of {scrape_result}"
+    try:
+        prompt = f"""Summarize the following text in approximately 100 words while preserving all key context and main points:
+
+        {scrape_result}"""
+
+        # Generate summary using Mixtral model
+        response = await client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            model="mixtral-8x7b-32768",
+            temperature=0.5,
+            max_tokens=1024,
+            top_p=1,
+        )
+        
+        if response.choices[0].message.content:
+            return response.choices[0].message.content.strip()
+        return "No summary generated"
+
+    except Exception as e:
+        return f"Error generating summary: {str(e)}"
 
 async def image(scrape_result: str) -> str:
     """
@@ -24,10 +129,8 @@ async def image(scrape_result: str) -> str:
     return f"Image extracted from {scrape_result}"
 
 async def blog(scrape_result: str) -> str:
-    """
-    A dummy blog function that processes the scraper result.
-    """
-    return f"Blog content from {scrape_result}"
+    # Await the result of the coroutine properly
+    return await generate_blog_post(scrape_result)
 
 async def keyword(scrape_result: str) -> str:
     """

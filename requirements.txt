@@ -25,3 +25,27 @@ APScheduler
 
 # httpx for making HTTP requests
 httpx
+
+# Google Cloud AI Platform SDK for using Vertex AI models
+google-cloud-aiplatform
+
+# Vertex AI SDK for accessing specific models
+vertexai
+
+# LangChain for working with document loaders, retrievers, and LLMs
+vertexai
+
+# Google Generative AI Embeddings for vector generation
+langchain_google_genai
+
+# PyPDFLoader for loading PDFs into LangChain
+langchain_community
+
+# Groq for using Groq models
+groq
+
+# aiohttp for making HTTP requests
+aiohttp
+
+# BeautifulSoup for parsing HTML
+beautifulsoup4
