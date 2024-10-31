@@ -31,3 +31,10 @@ beautifulsoup4
 
 # aiohttp for making HTTP requests
 aiohttp
+
+# Groq for LLM
+groq
+
+# Google Generative AI for LLM
+google-generativeai
+
