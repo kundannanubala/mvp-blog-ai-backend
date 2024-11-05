@@ -5,12 +5,18 @@ from core.config import settings
 from asyncio import gather
 from services.articleServices import save_processed_entries
 from services.blogServices import generate_blog_post
-import asyncio
+from services.imageServices import generate_image_vertexai
+from services.scrapeServices import scrape
+from services.keywordServices import keyword_generation
 import dotenv
 dotenv.load_dotenv()
 from groq import AsyncGroq
+import os
 import aiohttp
 from bs4 import BeautifulSoup
+import vertexai
+from vertexai.vision_models import ImageGenerationModel
+from groq import Groq
 
 # Configure Groq client
 try:
@@ -96,37 +102,121 @@ async def summary(scrape_result: str) -> str:
     Summarizes the scraped content using Groq's Mixtral model.
     Returns a concise summary while preserving key context.
     """
+    # try:
+    #     # Add exponential backoff retry logic
+    #     max_retries = 3
+    #     base_delay = 5  # seconds
+        
+    #     for attempt in range(max_retries):
+    #         try:
+    #             prompt = f"""Summarize the following text in approximately 100 words while preserving all key context and main points:
+
+    #             {scrape_result}"""
+
+    #             response = await client.chat.completions.create(
+    #                 messages=[{"role": "user", "content": prompt}],
+    #                 model="llama-3.1-70b-versatile",
+    #                 temperature=0.5,
+    #                 max_tokens=8000,
+    #                 top_p=1,
+    #             )
+                
+    #             if response.choices[0].message.content:
+    #                 return response.choices[0].message.content.strip()
+                    
+    #         except Exception as e:
+    #             if "rate_limit_exceeded" in str(e):
+    #                 if attempt < max_retries - 1:
+    #                     delay = base_delay * (2 ** attempt)  # Exponential backoff
+    #                     await asyncio.sleep(delay)
+    #                     continue
+    #             raise e
+                
+    #     return "No summary generated"
+
+    # except Exception as e:
+    #     return f"Error generating summary: {str(e)}"
     try:
+        import google.generativeai as genai
+        
+        # Configure Gemini API
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        
+        # Initialize Gemini 1.5 Flash model
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        # Create prompt for summarization
         prompt = f"""Summarize the following text in approximately 100 words while preserving all key context and main points:
 
         {scrape_result}"""
-
-        # Generate summary using Mixtral model
-        response = await client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            model="mixtral-8x7b-32768",
-            temperature=0.5,
-            max_tokens=1024,
-            top_p=1,
-        )
         
-        if response.choices[0].message.content:
-            return response.choices[0].message.content.strip()
+        # Generate summary
+        response = model.generate_content(prompt)
+        
+        if response.text:
+            return response.text.strip()
+            
         return "No summary generated"
-
+        
     except Exception as e:
         return f"Error generating summary: {str(e)}"
 
-async def image(scrape_result: str) -> str:
+async def image(summary_result: str) -> str:
     """
-    A dummy image function that processes the scraper result.
+    Generates an image based on the scraped content using Vertex AI.
+    Returns the path to the locally saved image.
     """
-    return f"Image extracted from {scrape_result}"
+    try:
+        # Initialize Vertex AI
+        vertexai.init(project="researchdevelopment-424002", location="us-central1")
+        model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
+
+        # Create a prompt based on the scraped content
+        # Use first 500 characters of scrape_result to create context
+        context = summary_result[:500]
+        
+        prompt = f"""
+        Create a professional image based on this content: {context}
+        
+        Consider the following guidelines:
+        1. The image should be visually appealing and relevant to the content
+        2. Use a modern and professional art style
+        3. Ensure the image is suitable for a professional audience
+        4. Create a balanced composition
+        5. Use appropriate lighting and colors
+        """
+
+        # Generate the image
+        images = model.generate_images(
+            prompt=prompt,
+            number_of_images=1,
+            language="en",
+            aspect_ratio="16:9",  # Using widescreen ratio for blog images
+            safety_filter_level="block_some",
+            person_generation="allow_all",
+        )
+
+        if images:
+            # Create output directory if it doesn't exist
+            output_folder = "generated_blog_images"
+            os.makedirs(output_folder, exist_ok=True)
+
+            # Generate unique filename using timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_file = os.path.join(output_folder, f"blog_image_{timestamp}.png")
+
+            # Save the image locally
+            images[0].save(location=output_file, include_generation_parameters=False)
+            
+            print(f"Generated and saved image to: {output_file}")
+            return output_file
+
+        return ""  # Return empty string if no image was generated
+
+    except Exception as e:
+        print(f"Error generating image: {str(e)}")
+        return ""  # Return empty string on error
+
 
 async def blog(scrape_result: str) -> str:
     # Await the result of the coroutine properly
@@ -134,9 +224,46 @@ async def blog(scrape_result: str) -> str:
 
 async def keyword(scrape_result: str) -> str:
     """
-    A dummy keyword function that processes the scraper result.
+    Extract relevant keywords from the blog content using Groq API.
+    Uses the scrape result and metadata to generate keywords with maximum relevance.
     """
-    return f"Keywords extracted from {scrape_result}"
+
+    # Initialize Groq client
+    client = Groq()
+
+    # Create prompt for keyword extraction
+    prompt = f"""
+    Please analyze this blog content and extract the most relevant keywords.
+    Focus on technical terms, key concepts, and important topics.
+    Format the output as a comma-separated list of keywords.
+    
+    Content to analyze:
+    {scrape_result}
+    """
+
+    # Call Groq API for keyword extraction
+    completion = client.chat.completions.create(
+        model="mixtral-8x7b-32768",
+        messages=[
+            {
+                "role": "system", 
+                "content": "You are a keyword extraction specialist. Extract relevant keywords from content."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.3,
+        max_tokens=256,
+        top_p=1,
+        stream=False
+    )
+
+    # Get keywords from response
+    keywords = completion.choices[0].message.content.strip()
+    
+    return keywords
 
 async def process_entry(entry, url):
     """
