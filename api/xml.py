@@ -85,4 +85,8 @@ async def add_xml_urls(xml_url_request: XmlUrlRequest):
         "errors": errors if errors else None
     }
 
+@router.get("/get-urls")
+async def get_xml_urls():
+    xml_urls_data = await get_xml_urls_from_db()
+    return xml_urls_data
 
