@@ -11,12 +11,9 @@ from services.keywordServices import keyword_generation
 import dotenv
 dotenv.load_dotenv()
 from groq import AsyncGroq
+from services.summaryServices import summary
+from datetime import timedelta
 import os
-import aiohttp
-from bs4 import BeautifulSoup
-import vertexai
-from vertexai.vision_models import ImageGenerationModel
-from groq import Groq
 
 # Configure Groq client
 try:
@@ -27,75 +24,7 @@ except Exception as e:
     print(f"Error configuring Groq API: {str(e)}")
 
 async def scraper(link: str) -> str:
-    """
-    Scrapes and cleans blog content from the given URL.
-    Returns only the cleaned content text.
-    """
-    try:
-        client = AsyncIOMotorClient(settings.MONGODB_URI)
-        db = client[settings.MONGODB_NAME]
-        collection = db['scraped_content']
-        
-        # Check if URL already scraped
-        existing = await collection.find_one({"url": link})
-        if existing:
-            return existing['content']
-            
-        async with aiohttp.ClientSession() as session:
-            async with session.get(link) as response:
-                if response.status == 200:
-                    html = await response.text()
-                    soup = BeautifulSoup(html, 'html.parser')
-                    
-                    # Remove unwanted elements
-                    for element in soup.find_all(['script', 'style', 'nav', 'header', 'footer', 
-                                                'meta', 'input', 'button', 'form', 'iframe',
-                                                'noscript', 'svg', 'path', 'aside', '.sidebar',
-                                                '.advertisement', '.social-share', '.comments']):
-                        element.decompose()
-                    
-                    # Find main content
-                    main_content = None
-                    for selector in ['article', 'main', '.post-content', '.entry-content', 
-                                   '.blog-content', '.article-content', '#main-content']:
-                        main_content = soup.select_one(selector)
-                        if main_content:
-                            break
-                    
-                    content_soup = main_content if main_content else soup.body
-                    
-                    if content_soup:
-                        # Extract only meaningful paragraphs and headings
-                        paragraphs = content_soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
-                        text_content = []
-                        
-                        for p in paragraphs:
-                            text = p.get_text(strip=True)
-                            if text and len(text) > 20:  # Only keep substantial paragraphs
-                                # Clean the text
-                                text = ' '.join(text.split())  # Normalize whitespace
-                                text = text.replace('Click here', '')
-                                text = text.replace('Subscribe now', '')
-                                text = text.replace('Advertisement', '')
-                                text_content.append(text)
-                        
-                        # Join paragraphs with double newlines for readability
-                        scrape_result = '\n\n'.join(text_content)
-                        
-                        if scrape_result:
-                            # Store in MongoDB
-                            await collection.insert_one({
-                                "url": link,
-                                "content": scrape_result,
-                                "scraped_at": datetime.utcnow()
-                            })
-                            return scrape_result
-                return "No meaningful content found"
-                    
-    except Exception as e:
-        return f"Error scraping {link}: {str(e)}"
-    finally:
-        client.close()
+    return await scrape(link)
 
 async def summary(scrape_result: str) -> str:
     """
@@ -140,7 +69,7 @@ async def summary(scrape_result: str) -> str:
         import google.generativeai as genai
         
         # Configure Gemini API
-        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
         
         # Initialize Gemini 1.5 Flash model
         model = genai.GenerativeModel("gemini-1.5-flash")
@@ -159,63 +88,10 @@ async def summary(scrape_result: str) -> str:
         return "No summary generated"
         
     except Exception as e:
-        return f"Error generating summary: {str(e)}"
+        return f"Error generating summary: {str(e)}"    
 
 async def image(summary_result: str) -> str:
-    """
-    Generates an image based on the scraped content using Vertex AI.
-    Returns the path to the locally saved image.
-    """
-    try:
-        # Initialize Vertex AI
-        vertexai.init(project="researchdevelopment-424002", location="us-central1")
-        model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
-
-        # Create a prompt based on the scraped content
-        # Use first 500 characters of scrape_result to create context
-        context = summary_result[:500]
-        
-        prompt = f"""
-        Create a professional image based on this content: {context}
-        
-        Consider the following guidelines:
-        1. The image should be visually appealing and relevant to the content
-        2. Use a modern and professional art style
-        3. Ensure the image is suitable for a professional audience
-        4. Create a balanced composition
-        5. Use appropriate lighting and colors
-        """
-
-        # Generate the image
-        images = model.generate_images(
-            prompt=prompt,
-            number_of_images=1,
-            language="en",
-            aspect_ratio="16:9",  # Using widescreen ratio for blog images
-            safety_filter_level="block_some",
-            person_generation="allow_all",
-        )
-
-        if images:
-            # Create output directory if it doesn't exist
-            output_folder = "generated_blog_images"
-            os.makedirs(output_folder, exist_ok=True)
-
-            # Generate unique filename using timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = os.path.join(output_folder, f"blog_image_{timestamp}.png")
-
-            # Save the image locally
-            images[0].save(location=output_file, include_generation_parameters=False)
-            
-            print(f"Generated and saved image to: {output_file}")
-            return output_file
-
-        return ""  # Return empty string if no image was generated
-
-    except Exception as e:
-        print(f"Error generating image: {str(e)}")
-        return ""  # Return empty string on error
+    return await generate_image_vertexai(summary_result)
 
 
 async def blog(scrape_result: str) -> str:
@@ -223,47 +99,7 @@ async def blog(scrape_result: str) -> str:
     return await generate_blog_post(scrape_result)
 
 async def keyword(scrape_result: str) -> str:
-    """
-    Extract relevant keywords from the blog content using Groq API.
-    Uses the scrape result and metadata to generate keywords with maximum relevance.
-    """
-
-    # Initialize Groq client
-    client = Groq()
-
-    # Create prompt for keyword extraction
-    prompt = f"""
-    Please analyze this blog content and extract the most relevant keywords.
-    Focus on technical terms, key concepts, and important topics.
-    Format the output as a comma-separated list of keywords.
-    
-    Content to analyze:
-    {scrape_result}
-    """
-
-    # Call Groq API for keyword extraction
-    completion = client.chat.completions.create(
-        model="mixtral-8x7b-32768",
-        messages=[
-            {
-                "role": "system", 
-                "content": "You are a keyword extraction specialist. Extract relevant keywords from content."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.3,
-        max_tokens=256,
-        top_p=1,
-        stream=False
-    )
-
-    # Get keywords from response
-    keywords = completion.choices[0].message.content.strip()
-    
-    return keywords
+    return await keyword_generation(scrape_result)
 
 async def process_entry(entry, url):
     """
@@ -276,14 +112,16 @@ async def process_entry(entry, url):
     # First get scrape result
     scrape_result = await scraper(entry.link)
     
-    # Then process the remaining functions concurrently
+    # # # Then process the remaining functions concurrently
     summary_result, image_result, blog_result, keyword_result = await gather(
         summary(scrape_result),
         image(scrape_result),
         blog(scrape_result),
         keyword(scrape_result)
     )
+
     
+
     return {
         'title': entry.title,
         'published': entry.get('published', 'No date available'),
@@ -309,7 +147,7 @@ async def get_consolidated_todays_feeds(urls):
     """
     async def process_feed(url):
         feed = feedparser.parse(url)
-        today = datetime.now().date()
+        today = datetime.now().date() - timedelta(days=1)
         
         # Filter entries for today and process them concurrently
         today_entries = []

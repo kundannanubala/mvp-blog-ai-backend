@@ -52,3 +52,6 @@ beautifulsoup4
 
 # Bcrypt for hashing passwords
 bcrypt
+
+# AstraDB Python Client
+astrapy

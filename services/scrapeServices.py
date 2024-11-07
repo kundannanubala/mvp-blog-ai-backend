@@ -19,9 +19,9 @@ async def scrape(link: str) -> str:
         collection = db['scraped_content']
         
         # Check if URL already scraped
-        existing = await collection.find_one({"url": link})
-        if existing:
-            return existing['content']
+        # existing = await collection.find_one({"url": link})
+        # if existing:
+        #     return existing['content']
             
         async with aiohttp.ClientSession() as session:
             async with session.get(link) as response:

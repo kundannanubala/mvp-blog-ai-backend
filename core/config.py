@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     GOOGLE_CLOUD_REGION: str = os.getenv("GOOGLE_CLOUD_REGION") 
     GOOGLE_APPLICATION_CREDENTIALS: str = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
+    # AstraDB Settings
+    ASTRA_DB_APPLICATION_TOKEN: str = os.getenv("ASTRA_DB_APPLICATION_TOKEN")
+    ASTRA_DB_API_ENDPOINT: str = os.getenv("ASTRA_DB_API_ENDPOINT")
+    COLLECTION_NAME: str = os.getenv("COLLECTION_NAME")
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Set Google credentials environment variable
