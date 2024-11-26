@@ -7,3 +7,4 @@ class User(BaseModel):
     password: str
     myblogs: List[dict] = []
     created_at: datetime = datetime.now(UTC)
+    

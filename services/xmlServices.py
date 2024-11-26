@@ -7,7 +7,7 @@ from services.articleServices import save_processed_entries
 from services.blogServices import generate_blog_post
 from services.imageServices import generate_image_vertexai
 from services.scrapeServices import scrape
-from services.keywordServices import keyword_generation
+from services.keywordServices import extract_matching_keywords
 import dotenv
 dotenv.load_dotenv()
 from groq import AsyncGroq
@@ -25,81 +25,9 @@ except Exception as e:
 
 async def scraper(link: str) -> str:
     return await scrape(link)
-
-async def summary(scrape_result: str) -> str:
-    """
-    Summarizes the scraped content using Groq's Mixtral model.
-    Returns a concise summary while preserving key context.
-    """
-    # try:
-    #     # Add exponential backoff retry logic
-    #     max_retries = 3
-    #     base_delay = 5  # seconds
-        
-    #     for attempt in range(max_retries):
-    #         try:
-    #             prompt = f"""Summarize the following text in approximately 100 words while preserving all key context and main points:
-
-    #             {scrape_result}"""
-
-    #             response = await client.chat.completions.create(
-    #                 messages=[{"role": "user", "content": prompt}],
-    #                 model="llama-3.1-70b-versatile",
-    #                 temperature=0.5,
-    #                 max_tokens=8000,
-    #                 top_p=1,
-    #             )
-                
-    #             if response.choices[0].message.content:
-    #                 return response.choices[0].message.content.strip()
-                    
-    #         except Exception as e:
-    #             if "rate_limit_exceeded" in str(e):
-    #                 if attempt < max_retries - 1:
-    #                     delay = base_delay * (2 ** attempt)  # Exponential backoff
-    #                     await asyncio.sleep(delay)
-    #                     continue
-    #             raise e
-                
-    #     return "No summary generated"
-
-    # except Exception as e:
-    #     return f"Error generating summary: {str(e)}"
-    try:
-        import google.generativeai as genai
-        
-        # Configure Gemini API
-        genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-        
-        # Initialize Gemini 1.5 Flash model
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        
-        # Create prompt for summarization
-        prompt = f"""Summarize the following text in approximately 100 words while preserving all key context and main points:
-
-        {scrape_result}"""
-        
-        # Generate summary
-        response = model.generate_content(prompt)
-        
-        if response.text:
-            return response.text.strip()
-            
-        return "No summary generated"
-        
-    except Exception as e:
-        return f"Error generating summary: {str(e)}"    
-
-async def image(summary_result: str) -> str:
-    return await generate_image_vertexai(summary_result)
-
-
-async def blog(scrape_result: str) -> str:
-    # Await the result of the coroutine properly
-    return await generate_blog_post(scrape_result)
-
-async def keyword(scrape_result: str) -> str:
-    return await keyword_generation(scrape_result)
+   
+async def keyword(scrape_result: str) -> dict:
+    return await extract_matching_keywords(scrape_result)
 
 async def process_entry(entry, url):
     """
@@ -111,16 +39,9 @@ async def process_entry(entry, url):
     
     # First get scrape result
     scrape_result = await scraper(entry.link)
-    
-    # # # Then process the remaining functions concurrently
-    summary_result, image_result, blog_result, keyword_result = await gather(
-        summary(scrape_result),
-        image(scrape_result),
-        blog(scrape_result),
-        keyword(scrape_result)
-    )
-
-    
+    # Then get keyword result
+    keyword_result = await keyword(scrape_result)
+    # print(keyword_result)
 
     return {
         'title': entry.title,
@@ -129,9 +50,6 @@ async def process_entry(entry, url):
         'source': url,
         'image_url': image_url,
         'scrape_result': scrape_result,
-        'summary_result': summary_result,
-        'image_result': image_result,
-        'blog_result': blog_result,
         'keyword_result': keyword_result
     }
 
@@ -189,7 +107,7 @@ async def get_consolidated_feeds(urls):
         return entries
 
     # Process all feeds concurrently
-    all_entries = await gather(*[process_feed(url) for url in urls])
+    all_entries = await gather(*[process_feed(url ) for url in urls])
     flattened_entries = [entry for feed_entries in all_entries for entry in feed_entries]
     
     # Save processed entries to articles collection

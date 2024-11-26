@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict
 
 class Article(BaseModel):
     id: str
@@ -10,8 +10,5 @@ class Article(BaseModel):
     source: str
     image_url: Optional[str]
     scrape_result: str
-    summary_result: str
-    image_result: str
-    blog_result: str
-    keyword_result: str
+    keyword_result: dict
     created_at: datetime = datetime.utcnow()

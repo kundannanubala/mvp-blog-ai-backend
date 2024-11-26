@@ -114,3 +114,5 @@ async def add_blog_to_user(username: str, blog_data: dict) -> dict:
         return {"error": "User not found"}
     finally:
         client.close()
+
+

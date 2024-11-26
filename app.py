@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api import xml, article, user, rag
+from api import xml, article, user, rag, keyword
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -47,6 +47,9 @@ app.include_router(user.router, tags=["User"], prefix="/user")
 
 # Include RAG router
 app.include_router(rag.router, tags=["RAG"], prefix="/rag")
+
+# Include Keyword router
+app.include_router(keyword.router, tags=["Keyword"], prefix="/keyword")
 
 # Run the app
 if __name__ == "__main__":
