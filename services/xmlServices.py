@@ -50,7 +50,8 @@ async def process_entry(entry, url):
         'source': url,
         'image_url': image_url,
         'scrape_result': scrape_result,
-        'keyword_result': keyword_result
+        'keyword_result': keyword_result,
+        'description': entry.description
     }
 
 async def get_consolidated_todays_feeds(urls):

@@ -5,7 +5,7 @@ from core.config import settings
 from astrapy.collection import Collection
 
 
-async def store_article_in_vector_db(article_data: dict, username: str):
+async def store_article_in_vector_db(article_data: dict):
     # Retrieve environment variables
     token = settings.ASTRA_DB_APPLICATION_TOKEN
     api_endpoint = settings.ASTRA_DB_API_ENDPOINT
@@ -18,7 +18,6 @@ async def store_article_in_vector_db(article_data: dict, username: str):
 
     # Add metadata to the article data
     article_data['metadata'] = {
-        'username': username,
         'created_at': datetime.utcnow().isoformat()
     }
 

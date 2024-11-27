@@ -15,6 +15,8 @@ import asyncio
 from core.config import settings
 from motor.motor_asyncio import AsyncIOMotorClient
 import dotenv
+from services.articleServices import get_articles_by_ids
+from services.imageServices import generate_image_vertexai
 dotenv.load_dotenv()
 async def generate_blog_post(scrape_result: str) -> str:
     # Initialize the Vertex AI client
@@ -82,29 +84,34 @@ def blog_prompt_template():
         """
     return listicle_blog_post_prompt
 
-async def fetch_and_generate_blog_posts() -> list:
+async def fetch_and_generate_blog_posts(article_ids: list) -> dict:
     """
-    Fetch articles from MongoDB and generate blog posts using the scraped content.
+    Fetch specific articles and generate blog posts using the combined scraped content.
+
+    Args:
+        article_ids: List of article IDs to process
 
     Returns:
-        list: A list of generated blog posts.
+        dict: A dictionary of generated blog posts
     """
-    client = AsyncIOMotorClient(settings.MONGODB_URI)
-    db = client[settings.MONGODB_NAME]
-    collection = db['articles']
-
-    try:
-        articles = await collection.find().to_list(length=None)
-        generated_blog_posts = []
-
-        for article in articles:
-            scraped_content = article.get('scrape_result')
-            if scraped_content:
-                blog_post = await generate_blog_post(scraped_content)
-                generated_blog_posts.append(blog_post+'\n***********************************')
-
-        return generated_blog_posts
-    finally:
-        client.close()
+    # Get scrape results using the article service
+    scrape_results = await get_articles_by_ids(article_ids)
+    
+    # Combine all scrape results
+    combined_content = "\n\n".join(scrape_results)
+    
+    if combined_content:
+        # Generate blog post from combined content
+        blog_post = await generate_blog_post(combined_content)
+        
+        # Generate image based on the blog post content
+        image_path = await generate_image_vertexai(blog_post)
+        
+        return {
+            "content": blog_post,
+            "image_path": image_path
+        }
+    
+    return {}
 
 # print(asyncio.run(fetch_and_generate_blog_posts()))

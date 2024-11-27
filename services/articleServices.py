@@ -51,3 +51,23 @@ async def get_article():
     
     client.close()
     return articles
+
+async def get_articles_by_ids(article_ids: list) -> list:
+    """
+    Fetch articles with specified IDs and return their scrape results
+    
+    Args:
+        article_ids (list): List of article IDs to fetch
+        
+    Returns:
+        list: List of scrape results from the specified articles
+    """
+    client = AsyncIOMotorClient(settings.MONGODB_URI)
+    db = client[settings.MONGODB_NAME]
+    collection = db['articles']
+    
+    try:
+        articles = await collection.find({"id": {"$in": article_ids}}).to_list(length=None)
+        return [article.get('scrape_result', '') for article in articles if article.get('scrape_result')]
+    finally:
+        client.close()

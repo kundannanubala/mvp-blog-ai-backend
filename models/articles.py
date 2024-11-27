@@ -11,4 +11,5 @@ class Article(BaseModel):
     image_url: Optional[str]
     scrape_result: str
     keyword_result: dict
+    description: str
     created_at: datetime = datetime.utcnow()
