@@ -22,7 +22,7 @@ async def save_processed_entries(processed_entries: list) -> list:
     try:
         for entry in processed_entries:
             article = Article(
-                id=str(uuid4()),
+                ID=uuid4().hex,
                 **entry
             )
             
@@ -67,7 +67,7 @@ async def get_articles_by_ids(article_ids: list) -> list:
     collection = db['articles']
     
     try:
-        articles = await collection.find({"id": {"$in": article_ids}}).to_list(length=None)
+        articles = await collection.find({"ID": {"$in": article_ids}}).to_list(length=None)
         return [article.get('scrape_result', '') for article in articles if article.get('scrape_result')]
     finally:
         client.close()

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List, Dict
 
 class Article(BaseModel):
-    id: str
+    ID: str
     title: str
     published: str
     link: str
