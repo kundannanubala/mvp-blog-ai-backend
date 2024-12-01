@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 import os
+import certifi
 
 
 
@@ -18,6 +19,16 @@ class Settings(BaseSettings):
     ASTRA_DB_APPLICATION_TOKEN: str = os.getenv("ASTRA_DB_APPLICATION_TOKEN")
     ASTRA_DB_API_ENDPOINT: str = os.getenv("ASTRA_DB_API_ENDPOINT")
     COLLECTION_NAME: str = os.getenv("COLLECTION_NAME")
+
+    # MongoDB connection options
+    @property
+    def mongodb_settings(self):
+        return {
+            "tls": True,
+            "tlsCAFile": certifi.where(),
+            "retryWrites": True,
+            "w": "majority"
+        }
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

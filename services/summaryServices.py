@@ -46,7 +46,7 @@ async def summary(scrape_result: str) -> str:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         
         # Initialize Gemini 1.5 Flash model
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-1.5-flash-8b")
         
         # Create prompt for summarization
         prompt = f"""Summarize the following text in approximately 100 words while preserving all key context and main points:

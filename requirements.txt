@@ -55,3 +55,12 @@ bcrypt
 
 # AstraDB Python Client
 astrapy
+
+# LangChain Google Generative AI
+langchain-google-genai
+
+# Streamlit for creating the web app
+streamlit
+
+#httpx
+httpx
