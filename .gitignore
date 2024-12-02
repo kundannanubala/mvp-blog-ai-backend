@@ -35,3 +35,7 @@ config/*.json
 logs/
 tmp/
 temp/
+api/.DS_Store
+api/.DS_Store
+models/.DS_Store
+services/.DS_Store

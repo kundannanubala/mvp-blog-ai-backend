@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from api import xml, article, user, rag, keyword, blog
+from api import xml, article, user, rag, keyword, blog, stylizedBlog
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -75,6 +75,7 @@ app.include_router(user.router, tags=["User"], prefix="/user")
 app.include_router(rag.router, tags=["RAG"], prefix="/rag")
 app.include_router(keyword.router, tags=["Keyword"], prefix="/keyword")
 app.include_router(blog.router, tags=["Blog"], prefix="/blog")
+app.include_router(stylizedBlog.router, tags=["StylizedBlog"], prefix="/stylized-blog")
 
 @app.exception_handler(ServerSelectionTimeoutError)
 async def database_exception_handler(request: Request, exc: ServerSelectionTimeoutError):
