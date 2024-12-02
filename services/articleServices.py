@@ -2,6 +2,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from core.config import settings
 from models.articles import Article
 from uuid import uuid4
+from services.summaryServices import summary
 
 async def save_processed_entries(processed_entries: list) -> list:
     """
@@ -21,6 +22,12 @@ async def save_processed_entries(processed_entries: list) -> list:
     
     try:
         for entry in processed_entries:
+            if not entry.get('scrape_result'):
+                continue
+            
+            # Generate summary before saving
+            entry['summary'] = await summary(entry['scrape_result'])
+            
             article = Article(
                 ID=uuid4().hex,
                 **entry

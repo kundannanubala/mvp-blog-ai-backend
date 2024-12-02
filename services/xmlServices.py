@@ -14,6 +14,7 @@ from groq import AsyncGroq
 from services.summaryServices import summary
 from datetime import timedelta
 import os
+from services.cleaningServices import HTMLCleaner
 
 # Configure Groq client
 try:
@@ -22,6 +23,9 @@ try:
     )
 except Exception as e:
     print(f"Error configuring Groq API: {str(e)}")
+
+# Initialize the cleaner
+html_cleaner = HTMLCleaner()
 
 async def scraper(link: str) -> str:
     return await scrape(link)
@@ -41,7 +45,9 @@ async def process_entry(entry, url):
     scrape_result = await scraper(entry.link)
     # Then get keyword result
     keyword_result = await keyword(scrape_result)
-    # print(keyword_result)
+    
+    # Clean the description using the new service
+    cleaned_description = await html_cleaner.clean_meta_description(entry.description)
 
     return {
         'title': entry.title,
@@ -51,7 +57,7 @@ async def process_entry(entry, url):
         'image_url': image_url,
         'scrape_result': scrape_result,
         'keyword_result': keyword_result,
-        'description': entry.description
+        'description': cleaned_description or entry.description  # Fallback to original if cleaning fails
     }
 
 async def get_consolidated_todays_feeds(urls):

@@ -1,5 +1,7 @@
 # FastAPI dependencies
 fastapi
+
+#uvicorn
 uvicorn
 
 # CORS Middleware for FastAPI
@@ -32,8 +34,8 @@ google-cloud-aiplatform
 # Vertex AI SDK for accessing specific models
 vertexai
 
-# LangChain for working with document loaders, retrievers, and LLMs
-vertexai
+#langchain
+langchain
 
 # Google Generative AI Embeddings for vector generation
 langchain_google_genai

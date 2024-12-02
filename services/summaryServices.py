@@ -1,65 +1,55 @@
 import os
 import google.generativeai as genai
-async def summary(scrape_result: str) -> str:
+from core.config import settings
+import asyncio
+from typing import Optional
+
+async def summary(scrape_result: str) -> Optional[str]:
     """
-    Summarizes the scraped content using Groq's Mixtral model.
+    Summarizes the scraped content using Google's Gemini model.
     Returns a concise summary while preserving key context.
     """
-    # try:
-    #     # Add exponential backoff retry logic
-    #     max_retries = 3
-    #     base_delay = 5  # seconds
-        
-    #     for attempt in range(max_retries):
-    #         try:
-    #             prompt = f"""Summarize the following text in approximately 100 words while preserving all key context and main points:
-
-    #             {scrape_result}"""
-
-    #             response = await client.chat.completions.create(
-    #                 messages=[{"role": "user", "content": prompt}],
-    #                 model="llama-3.1-70b-versatile",
-    #                 temperature=0.5,
-    #                 max_tokens=8000,
-    #                 top_p=1,
-    #             )
-                
-    #             if response.choices[0].message.content:
-    #                 return response.choices[0].message.content.strip()
-                    
-    #         except Exception as e:
-    #             if "rate_limit_exceeded" in str(e):
-    #                 if attempt < max_retries - 1:
-    #                     delay = base_delay * (2 ** attempt)  # Exponential backoff
-    #                     await asyncio.sleep(delay)
-    #                     continue
-    #             raise e
-                
-    #     return "No summary generated"
-
-    # except Exception as e:
-    #     return f"Error generating summary: {str(e)}"
     try:
-        import google.generativeai as genai
-        
         # Configure Gemini API
-        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        genai.configure(api_key=settings.GOOGLE_API_KEY)
         
-        # Initialize Gemini 1.5 Flash model
-        model = genai.GenerativeModel("gemini-1.5-flash-8b")
+        # Initialize Gemini model
+        model = genai.GenerativeModel("gemini-1.5-flash-8b")  # Using Flash model for better summaries
+        
+        # Truncate input if too long (Gemini has a context limit)
+        max_chars = 30000
+        truncated_text = scrape_result[:max_chars] if len(scrape_result) > max_chars else scrape_result
         
         # Create prompt for summarization
-        prompt = f"""Summarize the following text in approximately 100 words while preserving all key context and main points:
+        prompt = f"""Summarize the following text in approximately 100 words. 
+        Focus on key points and maintain factual accuracy:
 
-        {scrape_result}"""
+        {truncated_text}"""
         
-        # Generate summary
-        response = model.generate_content(prompt)
-        
-        if response.text:
-            return response.text.strip()
-            
-        return "No summary generated"
+        # Generate summary with retries
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = await asyncio.to_thread(
+                    model.generate_content,
+                    prompt,
+                    generation_config={
+                        'temperature': 0.3,
+                        'top_p': 0.8,
+                        'top_k': 40,
+                    }
+                )
+                
+                if response.text:
+                    return response.text.strip()
+                    
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                
+        return None
         
     except Exception as e:
-        return f"Error generating summary: {str(e)}"
+        print(f"Error generating summary: {str(e)}")
+        return None
