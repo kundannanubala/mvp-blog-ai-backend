@@ -11,4 +11,5 @@ generated_blog_images/
 .cursorignore
 .cursorrules
 
-.DS_Store
+.DS_Store/  
+.pylintrc
