@@ -1,10 +1,9 @@
-'''Import necessary libraries
-Setting up the Vertex AI client
-Setting up the LLM using langchain and Vertex AI client
-Setting up the prompt template
-chain will be defined in the /retrieve-vectors endpoint
-'''
-#Importing the necessary modules
+"""
+This module handles the generation of blog posts using the Vertex AI client and LangChain.
+It includes functions to generate blog posts from scraped content and fetch specific articles.
+"""
+
+# Importing the necessary modules
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema.runnable import RunnablePassthrough
@@ -17,8 +16,20 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import dotenv
 from services.articleServices import get_articles_by_ids
 from services.imageServices import generate_image_vertexai
+
+# Load environment variables from a .env file
 dotenv.load_dotenv()
+
 async def generate_blog_post(scrape_result: str) -> dict:
+    """
+    Generate a blog post from the given scrape result using Vertex AI and LangChain.
+
+    Args:
+        scrape_result (str): The scraped content to be used for generating the blog post.
+
+    Returns:
+        dict: A dictionary containing the generated blog post content or an error message.
+    """
     # Initialize the Vertex AI client
     aiplatform.init(project=settings.GOOGLE_CLOUD_PROJECT)
 
@@ -43,22 +54,32 @@ async def generate_blog_post(scrape_result: str) -> dict:
                             "properties": {
                                 "heading": {"type": "string"},
                                 "description": {"type": "string"},
-                                "examples": {"type": "array", "items": {"type": "string"}},
-                                "media_reference": {"type": "string", "nullable": True}
+                                "examples": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "media_reference": {"type": "string", "nullable": True},
                             },
-                            "required": ["heading", "description", "examples"]
-                        }
+                            "required": ["heading", "description", "examples"],
+                        },
                     },
                     "conclusion": {"type": "string"},
-                    "cta": {"type": "string"}
+                    "cta": {"type": "string"},
                 },
-                "required": ["title", "introduction", "list_items", "conclusion", "cta"]
-            }
-        }
+                "required": [
+                    "title",
+                    "introduction",
+                    "list_items",
+                    "conclusion",
+                    "cta",
+                ],
+            },
+        },
     )
 
     # Update the prompt template to match expected variables
-    prompt = ChatPromptTemplate.from_template("""
+    prompt = ChatPromptTemplate.from_template(
+        """
         You are tasked with generating a listicle blog post. Follow the steps below to ensure clarity, accuracy, and coherence. Avoid hallucination by strictly adhering to the provided variables from the context.
         context:{context}
 
@@ -82,8 +103,7 @@ async def generate_blog_post(scrape_result: str) -> dict:
 
         Generate the textual content based on the variables provided.
         """
-
-    """
+        """
         Generates a prompt for creating a how-to blog post with enhanced structure, chain-of-thought, and task breakdown.
         Args:
         - title: The title of the how-to post.
@@ -95,26 +115,27 @@ async def generate_blog_post(scrape_result: str) -> dict:
 
         Returns:
         - Prompt string for a how-to blog post with structured breakdown.
-    """)
+    """
+    )
 
     try:
         # Create chain with proper context handling
-        chain = (
-            {"context": lambda x: x}
-            | prompt
-            | llm
-            | StrOutputParser()
-        )
-        
+        chain = {"context": lambda x: x} | prompt | llm | StrOutputParser()
+
         # Invoke the chain with the scrape result
         result = await asyncio.to_thread(chain.invoke, scrape_result)
         return result
     except Exception as e:
         return {"error": str(e)}
 
-def blog_prompt_template():
+def blog_prompt_template() -> str:
+    """
+    Generate a prompt template for creating a listicle blog post.
 
-    listicle_blog_post_prompt="""
+    Returns:
+        str: The prompt template string.
+    """
+    listicle_blog_post_prompt = """
         You are tasked with generating a listicle blog post. Follow the steps below to ensure clarity, accuracy, and coherence. Avoid hallucination by strictly adhering to the provided variables from the context.
         context:{context}
 
@@ -159,29 +180,27 @@ async def fetch_and_generate_blog_posts(article_ids: list) -> dict:
     Fetch specific articles and generate blog posts using the combined scraped content.
 
     Args:
-        article_ids: List of article IDs to process
+        article_ids (list): List of article IDs to process.
 
     Returns:
-        dict: A dictionary of generated blog posts
+        dict: A dictionary containing the generated blog posts and image paths.
     """
     # Get scrape results using the article service
     scrape_results = await get_articles_by_ids(article_ids)
-    
-    # Combine all scrape results
+
+    # Combine all scrape results into a single string
     combined_content = "\n\n".join(scrape_results)
-    
+
     if combined_content:
         # Generate blog post from combined content
         blog_post = await generate_blog_post(combined_content)
-        
+
         # Generate image based on the blog post content
         image_path = await generate_image_vertexai(blog_post)
-        
-        return {
-            "content": blog_post,
-            "image_path": image_path
-        }
-    
+
+        return {"content": blog_post, "image_path": image_path}
+
     return {}
 
+# Uncomment the line below to test the function
 # print(asyncio.run(fetch_and_generate_blog_posts()))

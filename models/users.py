@@ -3,8 +3,16 @@ from typing import List
 from datetime import datetime, UTC
 
 class User(BaseModel):
-    username: str
-    password: str
-    myblogs: List[dict] = []
-    created_at: datetime = datetime.now(UTC)
-    
+    """
+    Data model for representing a user.
+
+    Attributes:
+        username (str): The username of the user.
+        password (str): The password of the user.
+        myblogs (List[dict]): A list of blogs associated with the user, defaulting to an empty list.
+        created_at (datetime): The timestamp when the user was created, defaulting to the current UTC time.
+    """
+    username: str  # The username of the user
+    password: str  # The password of the user
+    myblogs: List[dict] = []  # A list to store the user's blogs
+    created_at: datetime = datetime.now(UTC)  # The creation timestamp of the user, set to the current UTC time by default

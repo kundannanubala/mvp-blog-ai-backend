@@ -1,68 +1,74 @@
-# FastAPI dependencies
+# FastAPI - Modern, fast web framework for building APIs with Python based on standard Python type hints
 fastapi
 
-#uvicorn
+# uvicorn - Lightning-fast ASGI server implementation, for running FastAPI applications
 uvicorn
 
-# CORS Middleware for FastAPI
+# fastapi-cors - CORS middleware for FastAPI to handle Cross-Origin Resource Sharing
 fastapi-cors
 
-# Pydantic for data validation
+# pydantic - Data validation and settings management using Python type annotations
 pydantic
 
-# Python Dotenv for loading environment variables
+# python-dotenv - Reads key-value pairs from .env file and sets them as environment variables
 python-dotenv
 
-# Feedparser for parsing RSS feeds
+# feedparser - Universal feed parser for parsing RSS and Atom feeds
 feedparser
 
-# Pydantic Settings for loading environment variables
+# pydantic-settings - Settings management with pydantic models for type-safe configuration
 pydantic-settings
 
-# Motor for MongoDB async client
+# motor - Asynchronous Python driver for MongoDB, designed for use with asyncio
 motor
 
-# APScheduler for scheduling tasks
+# APScheduler - Advanced Python Scheduler for scheduling periodic tasks and cron jobs
 APScheduler
 
-# httpx for making HTTP requests
+# httpx - Fully featured HTTP client for Python 3 with async support
 httpx
 
-# Google Cloud AI Platform SDK for using Vertex AI models
+# google-cloud-aiplatform - Google Cloud AI Platform SDK for accessing Vertex AI services
 google-cloud-aiplatform
 
-# Vertex AI SDK for accessing specific models
+# vertexai - Vertex AI SDK for accessing Google's machine learning models and services
 vertexai
 
-#langchain
+# langchain - Framework for developing applications powered by language models
 langchain
 
-# Google Generative AI Embeddings for vector generation
+# langchain_google_genai - Google's Generative AI integration for LangChain
 langchain_google_genai
 
-# PyPDFLoader for loading PDFs into LangChain
+# langchain_community - Community-driven collection of tools and integrations for LangChain
 langchain_community
 
-# Groq for using Groq models
+# groq - Python client for interacting with Groq's large language models
 groq
 
-# aiohttp for making HTTP requests
+# aiohttp - Asynchronous HTTP client/server framework for asyncio and Python
 aiohttp
 
-# BeautifulSoup for parsing HTML
+# beautifulsoup4 - Library for pulling data out of HTML and XML files
 beautifulsoup4
 
-# Bcrypt for hashing passwords
+# bcrypt - Modern password hashing library for secure password storage
 bcrypt
 
-# AstraDB Python Client
+# astrapy - Official Python driver for DataStax Astra DB, a cloud-native Cassandra-as-a-Service
 astrapy
 
-# LangChain Google Generative AI
+# langchain-google-genai - Google's Generative AI models integration with LangChain
 langchain-google-genai
 
-# Streamlit for creating the web app
+# streamlit - Framework for building data science and machine learning web applications
 streamlit
 
-#httpx
+# httpx - Modern HTTP client with both sync and async APIs (duplicate entry)
 httpx
+
+# black - Uncompromising Python code formatter for consistent code style
+black       
+
+# autopep8 - Python code formatter that automatically formats Python code to conform to PEP 8
+autopep8    
