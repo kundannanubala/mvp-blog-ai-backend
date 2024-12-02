@@ -15,3 +15,23 @@ generated_blog_images/
 .pylintrc
 
 .DB_NAME
+
+DB_Store/
+*.db
+db_data/
+mongodb/
+data/
+*.sqlite
+*.sqlite3
+
+*.pem
+*.key
+*.crt
+secrets/
+config/*.json
+.env.*
+
+*.log
+logs/
+tmp/
+temp/
