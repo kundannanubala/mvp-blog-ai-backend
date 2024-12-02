@@ -4,4 +4,11 @@ result.txt
 .env
 credentials.json
 env.url
-generated_blog_images
+generated_blog_images/
+.pylintrc
+.cursorignore
+.cursorrules
+.cursorignore
+.cursorrules
+
+.DS_Store
