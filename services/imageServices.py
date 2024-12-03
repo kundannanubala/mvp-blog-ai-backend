@@ -2,78 +2,75 @@ import os
 from datetime import datetime
 import vertexai
 from vertexai.vision_models import ImageGenerationModel
+from core.config import settings
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 async def generate_image_vertexai(summary_result: str) -> str:
-    """
-    Generate an image based on the provided summary content using Vertex AI.
-
-    This function initializes the Vertex AI environment and uses a pre-trained image generation model
-    to create an image that visually represents the given summary content. The generated image is saved
-    locally, and the function returns the path to the saved image file.
-
-    Args:
-        summary_result (str): A string containing the summary content to base the image generation on.
-
-    Returns:
-        str: The file path to the locally saved image. Returns an empty string if image generation fails.
-    """
+    """Generate image with enhanced validation and error handling."""
     try:
-        # Initialize Vertex AI with the specified project and location
-        vertexai.init(
-            project="researchdevelopment-424002",
-            location="us-central1"
-        )
-        # Load the pre-trained image generation model
+        # Input validation
+        if not summary_result or len(summary_result.strip()) < 50:
+            logger.error("Error: Insufficient content for image generation")
+            return ""
+
+        # Initialize Vertex AI
+        vertexai.init(project=settings.GOOGLE_CLOUD_PROJECT, location="us-central1")
         model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
 
-        # Create a prompt using the first 500 characters of the summary content
-        context = summary_result[:500]
+        # Create context-aware prompt
+        context = summary_result[:500].replace('\n', ' ').strip()
         prompt = f"""
-        Create a professional image based on this content: {context}
+        Create a professional blog header image based on this content:
+        {context}
 
-        Consider the following guidelines:
-        1. The image should be visually appealing and relevant to the content.
-        2. Use a modern and professional art style.
-        3. Ensure the image is suitable for a professional audience.
-        4. Create a balanced composition.
-        5. Use appropriate lighting and colors.
+        Requirements:
+        - Professional and modern style
+        - Clean composition
+        - Suitable for business audience
+        - High contrast for readability
+        - Balanced visual elements
         """
 
-        # Generate the image using the model with specified parameters
-        images = model.generate_images(
-            prompt=prompt,
-            number_of_images=1,
-            language="en",
-            aspect_ratio="16:9",  # Use widescreen ratio for blog images
-            safety_filter_level="block_some",
-            person_generation="allow_all",
-        )
+        # Generate image with retries
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Attempting image generation (attempt {attempt + 1}/{max_retries})")
+                images = model.generate_images(
+                    prompt=prompt,
+                    number_of_images=1,
+                    language="en",
+                    aspect_ratio="16:9",
+                    safety_filter_level="block_some",
+                    person_generation="allow_all",
+                )
 
-        if images:
-            # Define the output directory and create it if it doesn't exist
-            output_folder = "generated_blog_images"
-            os.makedirs(output_folder, exist_ok=True)
+                if not images:
+                    if attempt == max_retries - 1:
+                        logger.error("Error: No images generated after all attempts")
+                        return ""
+                    logger.warning(f"No images generated on attempt {attempt + 1}, retrying...")
+                    continue
 
-            # Generate a unique filename using the current timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = os.path.join(
-                output_folder, f"blog_image_{timestamp}.png"
-            )
+                # Save image
+                output_folder = "generated_blog_images"
+                os.makedirs(output_folder, exist_ok=True)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_file = os.path.join(output_folder, f"blog_image_{timestamp}.png")
+                
+                images[0].save(location=output_file, include_generation_parameters=False)
+                logger.info(f"Successfully generated image: {output_file}")
+                return output_file
 
-            # Save the generated image locally
-            images[0].save(
-                location=output_file,
-                include_generation_parameters=False
-            )
-
-            print(f"Generated and saved image to: {output_file}")
-            return output_file
-
-        # Return an empty string if no image was generated
-        return ""
+            except Exception as retry_error:
+                logger.error(f"Attempt {attempt + 1} failed: {str(retry_error)}")
+                if attempt == max_retries - 1:
+                    raise
 
     except Exception as e:
-        # Log the error and return an empty string on failure
-        print(f"Error generating image: {str(e)}")
+        logger.error(f"Image generation error: {str(e)}")
         return ""

@@ -2,6 +2,11 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 from services.blogServices import fetch_and_generate_blog_posts
 from pydantic import BaseModel
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize the FastAPI router for handling blog-related endpoints
 router = APIRouter()
@@ -35,25 +40,35 @@ async def generate_blog_from_articles(request: BlogGenerationRequest):
                        during the blog post generation process.
     """
     try:
-        # Fetch and generate the blog post content and image using the provided article IDs
+        logger.info(f"Generating blog from articles: {request.article_ids}")
         result = await fetch_and_generate_blog_posts(request.article_ids)
-
-        # Check if the result is empty, indicating no content was generated
-        if not result:
+        
+        if "error" in result:
+            logger.error(f"Error generating blog: {result['error']}")
+            raise HTTPException(
+                status_code=400,
+                detail=result["error"]
+            )
+            
+        if not result.get("content"):
+            logger.error("No content generated")
             raise HTTPException(
                 status_code=404,
-                detail="No content could be generated from the specified articles",
+                detail="No content could be generated from the specified articles"
             )
-
-        # Return the successful result with the blog post content and image path
+            
         return {
             "status": "success",
             "blog_post": result.get("content", ""),
             "image_path": result.get("image_path", ""),
+            "timestamp": result.get("timestamp")
         }
-
+        
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        # Handle any exceptions that occur during the process and raise an HTTPException
+        logger.error(f"Unexpected error generating blog: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error generating blog post: {str(e)}"
+            status_code=500,
+            detail=f"An error occurred while generating the blog post: {str(e)}"
         )
