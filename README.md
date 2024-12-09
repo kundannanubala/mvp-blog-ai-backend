@@ -2,6 +2,9 @@
 
 Backend of Blog AI, consisting of services to handle RSS feeds management, user management, personalized blog generation, and pipelines facilitating communication among mentioned services.
 
+### Demo Video
+<video controls src="BlogaiDemo.mp4" title="Blog AI Demo"></video>
+
 ## Frontend
 https://github.com/Sachinbadi/Blogai-frontend/tree/kundannanubala
 
